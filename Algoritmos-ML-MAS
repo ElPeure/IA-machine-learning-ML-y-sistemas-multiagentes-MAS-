@@ -1,0 +1,221 @@
+import kagglehub
+import pandas as pd
+
+
+# Download latest version
+path = kagglehub.dataset_download("nsrose7224/crowdedness-at-the-campus-gym")
+print("Path to dataset files:", path)
+
+
+df = pd.read_csv(path + '/data.csv')  # Ajusta el nombre del archivo
+print("Número de filas:", df.shape[0])  # Muestra solo el número de filas
+
+---- primera parte ---
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, f1_score, precision_score
+
+# Cargar datos
+df = pd.read_csv('/kaggle/input/crowdedness-at-the-campus-gym/data.csv')
+
+# Convertir timestamp a hora
+df['hora'] = df['timestamp'] // 3600
+
+# Crear etiqueta: 1 si hay más personas que cierto umbral
+threshold = df['number_people'].quantile(0.75)
+df['total_gente'] = (df['number_people'] > threshold).astype(int)
+
+# Variables predictoras y etiqueta
+X = df[['hora', 'day_of_week']]
+y = df['total_gente']
+
+# División y escalamiento
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Verificar distribución de clases
+print(df['total_gente'].value_counts(normalize=True))
+
+# Ponderaciones
+weights = {
+    'accuracy': 0.3,
+    'f1': 0.5,
+    'precision': 0.2
+}
+
+# Definir modelos
+models = {
+    'Logistic Regression': LogisticRegression(),
+    'K-Nearest Neighbors': KNeighborsClassifier(),
+    'SVM': SVC()
+}
+
+results = {}
+
+# Entrenamiento y evaluación
+for name, model in models.items():
+    model.fit(X_train_scaled, y_train)
+    y_pred = model.predict(X_test_scaled)
+
+    acc = float(accuracy_score(y_test, y_pred))
+    f1 = float(f1_score(y_test, y_pred))
+    prec = float(precision_score(y_test, y_pred))
+
+    score = (
+        weights['accuracy'] * acc +
+        weights['f1'] * f1 +
+        weights['precision'] * prec
+    )
+
+    results[name] = {
+        'model': model,
+        'accuracy': acc,
+        'f1': f1,
+        'precision': prec,
+        'score': score
+    }
+
+# Mostrar score final por modelo
+for name, metrics in results.items():
+    print(f"{name} => score: {metrics['score']:.4f}, type: {type(metrics['score'])}")
+
+# Seleccionar mejor modelo
+best_model_name = max(results.items(), key=lambda x: x[1]['score'])[0]
+best_model = results[best_model_name]['model']
+
+print(f"\nEl mejor modelo es: {best_model_name} con score ponderado de {results[best_model_name]['score']:.2f}")
+
+# Ejemplo: miercoles (2), 18 hrs
+ejemplo = pd.DataFrame([[18, 2]], columns=['hora', 'day_of_week'])
+ejemplo_scaled = scaler.transform(ejemplo)
+
+# Predecir
+pred = best_model.predict(ejemplo_scaled)
+respuesta = "Lleno" if pred[0] == 1 else "No lleno"
+print(f"\n¿Estará lleno el gimnasio el miércoles a las 18:00? Respuesta: {respuesta}")
+
+# Cargar datos
+df = pd.read_csv('/kaggle/input/crowdedness-at-the-campus-gym/data.csv')
+
+#transformando a hora
+df['hora'] = df['timestamp'] // 3600
+
+# Características y etiqueta
+X_reg = df[['hora', 'day_of_week']]
+y_reg = df['number_people']
+
+# Dividir en conjuntos de entrenamiento y prueba
+X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(X_reg, y_reg, test_size=0.2, random_state=42)
+
+# Escalar características
+X_train_reg_scaled = scaler.fit_transform(X_train_reg)
+X_test_reg_scaled = scaler.transform(X_test_reg)
+
+--- segunda parte -----
+
+from sklearn.linear_model import LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error
+import numpy as np
+
+mse = mean_squared_error(y_test_reg, y_pred)
+rmse = np.sqrt(mse)
+
+# Definir modelos
+regressors = {
+    'Linear Regression': LinearRegression(),
+    'KNN Regressor': KNeighborsRegressor()
+}
+
+for name, model in regressors.items():
+    model.fit(X_train_reg_scaled, y_train_reg)
+    y_pred = model.predict(X_test_reg_scaled)
+
+    mse = mean_squared_error(y_test_reg, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test_reg, y_pred)
+
+    print(f"{name} - RMSE: {rmse:.2f}, R^2: {r2:.2f}")
+
+# Día  (martes), Hora: 18
+X_new = pd.DataFrame({'hora': [18], 'day_of_week': [1]})
+
+# Escalar usando el mismo scaler
+X_new_scaled = scaler.transform(X_new)
+
+# Predecir con el mejor modelo
+knn = KNeighborsRegressor()
+knn.fit(X_train_reg_scaled, y_train_reg)
+predicted_count = knn.predict(X_new_scaled)[0]
+
+print(f"Predicción: Se esperan aproximadamente {predicted_count:.0f} personas el martes a las 18:00 horas.")
+
+
+---- tercera parte -----
+
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC, SVR
+from sklearn.metrics import accuracy_score, f1_score, mean_squared_error, r2_score
+import numpy as np
+
+# Cargar datos
+df = pd.read_csv('/kaggle/input/crowdedness-at-the-campus-gym/data.csv')
+df['hora'] = df['timestamp'] // 3600
+threshold = df['number_people'].quantile(0.75)
+df['total_gente'] = (df['number_people'] > threshold).astype(int)
+
+X_common = df[['hora', 'day_of_week']]
+
+# Clasificación
+y_cls = df['total_gente']
+X_train_cls, X_test_cls, y_train_cls, y_test_cls = train_test_split(X_common, y_cls, test_size=0.2, random_state=42)
+scaler_cls = StandardScaler()
+X_train_cls_scaled = scaler_cls.fit_transform(X_train_cls)
+X_test_cls_scaled = scaler_cls.transform(X_test_cls)
+
+clf = SVC()
+clf.fit(X_train_cls_scaled, y_train_cls)
+
+# Regresión
+y_reg = df['number_people']
+X_train_reg, X_test_reg, y_train_reg, y_test_reg = train_test_split(X_common, y_reg, test_size=0.2, random_state=42)
+scaler_reg = StandardScaler()
+X_train_reg_scaled = scaler_reg.fit_transform(X_train_reg)
+X_test_reg_scaled = scaler_reg.transform(X_test_reg)
+
+reg = SVR()
+reg.fit(X_train_reg_scaled, y_train_reg)
+
+# Sistema Multiagente
+def mas_decision():
+    entrada_cls = pd.DataFrame([[18, 2]], columns=['hora', 'day_of_week'])
+    entrada_cls_scaled = scaler_cls.transform(entrada_cls)
+    pred_cls = clf.predict(entrada_cls_scaled)[0]
+    texto_cls = "Sí, estará lleno" if pred_cls == 1 else "No, no estará lleno"
+
+    entrada_reg = pd.DataFrame([[18, 2]], columns=['hora', 'day_of_week'])
+    entrada_reg_scaled = scaler_reg.transform(entrada_reg)
+    pred_reg = reg.predict(entrada_reg_scaled)[0]
+    texto_reg = f"Se esperan aproximadamente {int(pred_reg)} personas"
+
+    print("\nResultados del Sistema Multiagente:")
+    print(f"¿Estará lleno el gimnasio el martes a las 18:00? → {texto_cls}")
+    print(f"¿Cuántas personas habrá el martes a las 18:00? → {texto_reg}")
+    print("\n¿El gimnasio estará lleno el martes a las 18:00 horas, cuánta gente habrá?")
+    print(f"El gimnasio {texto_cls}. {texto_reg} personas.")
+
+mas_decision()
+
+
+
+
